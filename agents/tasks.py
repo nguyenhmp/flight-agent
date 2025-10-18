@@ -27,3 +27,11 @@ CREATE_WATCHES_UI = Task(
     acceptance="User can add a watch and see it in the list without reload.",
     files_to_touch=["web/src/pages/Watches.tsx"],
 )
+
+FIX_MODERN_UNION_OPERATOR = Task(
+    role="backend",
+    title="Fix all type errors using float | None",
+    goal="Make sure to fix all type errors like this unsupported operand type(s) for |: 'type' and 'NoneType'",
+    acceptance="User can run uvicorn app.main:app --reload",
+    files_to_touch=[],
+)
