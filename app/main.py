@@ -138,13 +138,3 @@ def confirm_book(payload: ConfirmBookIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(alert)
     return alert
-
-
-/* --- Agent change: Enable CORS on FastAPI --- */
-// LLM error: No module named 'openai'
-
-
-
-/* --- Agent change: Enable CORS on FastAPI --- */
-// LLM error: Error code: 429 - {'error': {'message': 'You exceeded your current quota, please check your plan and billing details. For more information on this error, read the docs: https://platform.openai.com/docs/guides/error-codes/api-errors.', 'type': 'insufficient_quota', 'param': None, 'code': 'insufficient_quota'}}
-
