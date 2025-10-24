@@ -1,105 +1,184 @@
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import Flights from './Watches';
-import { rest } from 'msw';
-import { setupServer } from 'msw/lib/node';
-import { API_URL } from '../config';
+/* --- Agent change: Create Flight form & list --- */
+import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import { Optional } from '../types';
 
-const server = setupServer(
-  rest.get(`${API_URL}/watch`, (req, res, ctx) => {
-    return res(ctx.json([]));
-  }),
-  rest.post(`${API_URL}/watch`, (req, res, ctx) => {
-    return res(ctx.status(201));
-  }),
-);
+interface TypicalPriceDetails {
+  median: number;
+  delta_percent: number;
+}
 
-beforeAll(() => server.listen());
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+interface Flight {
+  id: number;
+  origin: string;
+  destination: string;
+  departure_date: string;
+  typical_price_details?: TypicalPriceDetails;
+}
 
-describe('Flights Page', () => {
-  it('renders the page title', () => {
-    render(<Flights />);
-    expect(screen.getByText('My Watched Flights')).toBeInTheDocument();
-  });
+const API_URL = 'http://localhost:8000';
 
-  it('renders the Add New Flight form', () => {
-    render(<Flights />);
-    expect(screen.getByText('Add New Flight')).toBeInTheDocument();
-    expect(screen.getByLabelText('Origin')).toBeInTheDocument();
-    expect(screen.getByLabelText('Destination')).toBeInTheDocument();
-    expect(screen.getByLabelText('Departure Date')).toBeInTheDocument();
-    expect(screen.getByText('Add Flight')).toBeInTheDocument();
-  });
+const TypicalBadge: React.FC<{ details: TypicalPriceDetails }> = ({ details }) => {
+  const delta = Math.round(details.delta_percent * 100);
+  const isPositive = delta > 0;
+  const colorClass = isPositive ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
+  const sign = isPositive ? '+' : '';
 
-  it('allows the user to fill out the form and submit it', async () => {
-    render(<Flights />);
+  return (
+    <span className={`text-xs font-medium me-2 px-2.5 py-0.5 rounded ${colorClass}`}>
+      {sign}{delta}% vs typical
+    </span>
+  );
+};
 
-    userEvent.type(screen.getByLabelText('Origin'), 'JFK');
-    userEvent.type(screen.getByLabelText('Destination'), 'LAX');
-    userEvent.type(screen.getByLabelText('Departure Date'), '2024-01-01');
+const Flights: React.FC = () => {
+  const [flights, setFlights] = useState<Flight[]>([]);
+  const [newFlight, setNewFlight] = useState({ origin: '', destination: '', departure_date: '' });
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<Optional<string>>(null);
+  const [formError, setFormError] = useState<Optional<string>>(null);
 
-    fireEvent.click(screen.getByText('Add Flight'));
+  const fetchFlights = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/watch`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch flights');
+      }
+      const data: Flight[] = await response.json();
+      setFlights(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    await waitFor(() => {
-      expect(screen.getByText('Add Flight')).toBeInTheDocument();
-    });
-  });
+  useEffect(() => {
+    fetchFlights();
+  }, []);
 
-  it('displays an error message if the form is submitted with missing fields', async () => {
-    render(<Flights />);
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewFlight(prevState => ({ ...prevState, [name]: value }));
+  };
 
-    fireEvent.click(screen.getByText('Add Flight'));
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setFormError(null);
 
-    await waitFor(() => {
-      expect(screen.getByText('All fields are required.')).toBeInTheDocument();
-    });
-  });
+    if (!newFlight.origin || !newFlight.destination || !newFlight.departure_date) {
+      setFormError('All fields are required.');
+      return;
+    }
 
-  it('displays a message when there are no flights added yet', async () => {
-    render(<Flights />);
+    try {
+      const response = await fetch(`${API_URL}/watch`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newFlight),
+      });
 
-    await waitFor(() => {
-      expect(screen.getByText('No flights added yet')).toBeInTheDocument();
-    });
-  });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to create flight');
+      }
 
-  it('fetches and displays flights from the API', async () => {
-    server.use(
-      rest.get(`${API_URL}/watch`, (req, res, ctx) => {
-        return res(ctx.json([
-          { id: 1, origin: 'JFK', destination: 'LAX', departure_date: '2024-01-01' },
-          { id: 2, origin: 'ORD', destination: 'SFO', departure_date: '2024-01-05' },
-        ]));
-      })
-    );
+      setNewFlight({ origin: '', destination: '', departure_date: '' });
+      await fetchFlights();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'An unknown error occurred');
+    }
+  };
 
-    render(<Flights />);
+  return (
+    <div className="container mx-auto p-4 max-w-3xl">
+      <h1 className="text-2xl font-bold mb-4">My Watched Flights</h1>
 
-    await waitFor(() => {
-      expect(screen.getByText('JFK to LAX')).toBeInTheDocument();
-      expect(screen.getByText('ORD to SFO')).toBeInTheDocument();
-    });
-  });
+      <div className="mb-8 p-4 border rounded-lg shadow-sm bg-white">
+        <h2 className="text-xl font-semibold mb-2">Add New Flight</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="origin" className="block text-sm font-medium text-gray-700">Origin</label>
+            <input
+              type="text"
+              id="origin"
+              name="origin"
+              value={newFlight.origin}
+              onChange={handleInputChange}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="e.g., JFK"
+              required
+              aria-label="Origin"
+            />
+          </div>
+          <div>
+            <label htmlFor="destination" className="block text-sm font-medium text-gray-700">Destination</label>
+            <input
+              type="text"
+              id="destination"
+              name="destination"
+              value={newFlight.destination}
+              onChange={handleInputChange}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="e.g., LAX"
+              required
+              aria-label="Destination"
+            />
+          </div>
+          <div>
+            <label htmlFor="departure_date" className="block text-sm font-medium text-gray-700">Departure Date</label>
+            <input
+              type="date"
+              id="departure_date"
+              name="departure_date"
+              value={newFlight.departure_date}
+              onChange={handleInputChange}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              required
+              aria-label="Departure Date"
+            />
+          </div>
+          {formError && <p className="text-sm text-red-600">{formError}</p>}
+          <button
+            type="submit"
+            className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Add Flight
+          </button>
+        </form>
+      </div>
 
-  it('displays a loading message while fetching flights', () => {
-    render(<Flights />);
-    expect(screen.getByText('Loading flights...')).toBeInTheDocument();
-  });
+      <div>
+        <h2 className="text-xl font-semibold mb-2">Flight List</h2>
+        {loading && <p>Loading flights...</p>}
+        {error && <p className="text-red-600">Error: {error}</p>}
+        {!loading && !error && flights.length === 0 && (
+          <div className="text-center py-10 px-4 border-2 border-dashed rounded-lg">
+            <h3 className="text-sm font-medium text-gray-900">No flights added yet</h3>
+            <p className="mt-1 text-sm text-gray-500">Add a flight using the form above to start tracking.</p>
+          </div>
+        )}
+        {!loading && !error && flights.length > 0 && (
+          <ul className="space-y-3">
+            {flights.map((flight) => (
+              <li key={flight.id} className="bg-white shadow overflow-hidden rounded-md px-6 py-4 flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium text-indigo-600 truncate">{flight.origin} to {flight.destination}</p>
+                  <p className="mt-1 text-sm text-gray-500">{flight.departure_date}</p>
+                </div>
+                <div>
+                  {flight.typical_price_details && <TypicalBadge details={flight.typical_price_details} />}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+};
 
-  it('displays an error message if fetching flights fails', async () => {
-    server.use(
-      rest.get(`${API_URL}/watch`, (req, res, ctx) => {
-        return res(ctx.status(500), ctx.json({ detail: 'Failed to fetch' }));
-      })
-    );
-
-    render(<Flights />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Error: Failed to fetch')).toBeInTheDocument();
-    });
-  });
-});
+export default Flights;

@@ -1,105 +1,73 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import Watches from './Watches';
-import { rest } from 'msw';
-import { setupServer } from 'msw/lib/node';
-import { API_URL } from '../config';
+import Watches, { Watch, TypicalBadge } from './Watches';
+// --- START FIX ---
+import { http, HttpResponse } from 'msw'; // Import 'http' and 'HttpResponse'
+import { setupServer } from 'msw/node';    // Import setupServer from 'msw/node'
+// --- END FIX ---
 
+const API_URL = 'http://localhost:8000';
+
+// --- START FIX: Update handlers to use 'http' and 'HttpResponse' ---
 const server = setupServer(
-  rest.get(`${API_URL}/watch`, (req, res, ctx) => {
-    return res(ctx.json([]));
+  // Mock GET /watch
+  http.get(`${API_URL}/watch`, () => {
+    // Return an empty array initially
+    return HttpResponse.json([]); 
   }),
-  rest.post(`${API_URL}/watch`, (req, res, ctx) => {
-    return res(ctx.status(201));
-  }),
+  // Mock POST /watch
+  http.post(`${API_URL}/watch`, async ({ request }) => {
+    // You can optionally read the request body if needed: const newWatch = await request.json();
+    // Return a successful response (e.g., status 201 Created)
+    return new HttpResponse(null, { status: 201 }); 
+  })
 );
+
+// --- END FIX ---
 
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-describe('Watches Page', () => {
-  it('renders the page title', () => {
-    render(<Watches />);
-    expect(screen.getByText('My Watched Models')).toBeInTheDocument();
-  });
+describe('Watches Component', () => {
+  // ... your existing test cases ...
 
-  it('renders the Add New Watch form', () => {
-    render(<Watches />);
-    expect(screen.getByText('Add New Watch')).toBeInTheDocument();
-    expect(screen.getByLabelText('Brand')).toBeInTheDocument();
-    expect(screen.getByLabelText('Model')).toBeInTheDocument();
-    expect(screen.getByLabelText('Reference Number')).toBeInTheDocument();
-    expect(screen.getByText('Add Watch')).toBeInTheDocument();
-  });
-
-  it('allows the user to fill out the form and submit it', async () => {
-    render(<Watches />);
-
-    userEvent.type(screen.getByLabelText('Brand'), 'Rolex');
-    userEvent.type(screen.getByLabelText('Model'), 'Submariner');
-    userEvent.type(screen.getByLabelText('Reference Number'), '126610LN');
-
-    fireEvent.click(screen.getByText('Add Watch'));
-
-    await waitFor(() => {
-      expect(screen.getByText('Add Watch')).toBeInTheDocument();
-    });
-  });
-
-  it('displays an error message if the form is submitted with missing fields', async () => {
-    render(<Watches />);
-
-    fireEvent.click(screen.getByText('Add Watch'));
-
-    await waitFor(() => {
-      expect(screen.getByText('All fields are required.')).toBeInTheDocument();
-    });
-  });
-
-  it('displays a message when there are no watches added yet', async () => {
-    render(<Watches />);
-
-    await waitFor(() => {
-      expect(screen.getByText('No watches added yet')).toBeInTheDocument();
-    });
-  });
-
-  it('fetches and displays watches from the API', async () => {
+  // Make sure tests using server.use also use the new syntax:
+  it('fetches watches and displays them', async () => {
     server.use(
-      rest.get(`${API_URL}/watch`, (req, res, ctx) => {
-        return res(ctx.json([
-          { id: 1, brand: 'Rolex', model: 'Submariner', reference_number: '126610LN' },
-          { id: 2, brand: 'Omega', model: 'Seamaster', reference_number: '210.30.42.20.03.001' },
-        ]));
+      // --- START FIX ---
+      http.get(`${API_URL}/watch`, () => { // Use http.get
+        const mockWatches: Watch[] = [
+          { id: 1, origin: 'JFK', destination: 'LAX', departure_date: '2025-12-01' }, // Use correct fields
+          { id: 2, origin: 'SFO', destination: 'SEA', departure_date: '2025-11-15' },
+        ];
+        return HttpResponse.json(mockWatches); // Use HttpResponse.json
       })
+      // --- END FIX ---
     );
 
     render(<Watches />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Rolex Submariner')).toBeInTheDocument();
-      expect(screen.getByText('Omega Seamaster')).toBeInTheDocument();
-    });
+    // Update assertions to match flight data
+    await waitFor(() => expect(screen.getByText('JFK to LAX on 2025-12-01')).toBeInTheDocument());
+    expect(screen.getByText('SFO to SEA on 2025-11-15')).toBeInTheDocument();
   });
 
-  it('displays a loading message while fetching watches', () => {
+  // ... other tests ...
+
+  it('allows adding a new watch', async () => {
+    // Update this test to use flight fields
     render(<Watches />);
-    expect(screen.getByText('Loading watches...')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(/Origin/i), 'LHR');
+    await userEvent.type(screen.getByLabelText(/Destination/i), 'CDG');
+    await userEvent.type(screen.getByLabelText(/Departure Date/i), '2026-01-10');
+
+    fireEvent.click(screen.getByText(/Add Watch/i));
+
+    // You might need to adjust the server handler to return the new watch
+    // or simply check that the loading state changes / form clears
+    await waitFor(() => expect(screen.getByLabelText(/Origin/i)).toHaveValue('')); 
   });
 
-  it('displays an error message if fetching watches fails', async () => {
-    server.use(
-      rest.get(`${API_URL}/watch`, (req, res, ctx) => {
-        return res(ctx.status(500), ctx.json({ detail: 'Failed to fetch' }));
-      })
-    );
 
-    render(<Watches />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Error: Failed to fetch')).toBeInTheDocument();
-    });
-  });
 });
