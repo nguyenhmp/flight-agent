@@ -1,4 +1,6 @@
-def evaluate_rules(price: float, currency: str, auto_book_price: float | None, confirm_price: float | None, typical: dict | None):
+from typing import Optional
+
+def evaluate_rules(price: float, currency: str, auto_book_price: Optional[float], confirm_price: Optional[float], typical: Optional[dict]):
     """Return 'AUTO', 'CONFIRM', or 'NONE' based on thresholds and typicals (p25/p50)."""
     # Priority: explicit auto_book threshold
     if auto_book_price is not None and price <= auto_book_price:

@@ -14,13 +14,20 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
-from agents.tasks import IMPLEMENT_CORS, CREATE_WATCHES_UI, FIX_MODERN_UNION_OPERATOR
+from agents.tasks import IMPLEMENT_CORS, CREATE_WATCHES_UI, FIX_MODERN_UNION_OPERATOR, WRITE_WATCHES_PAGE_VITEST_TESTS, SETUP_WEB_DEPENDENCIES, SETUP_REACT_ROOT, FIX_APP_IMPORT, REFACTOR_WATCHES_PAGE_TO_FLIGHTS
 from orchestrator.graph import run_task
 
 TASKS = {
     "backend:cors": IMPLEMENT_CORS,
     "frontend:watches": CREATE_WATCHES_UI,
-    "backend:type-fix": FIX_MODERN_UNION_OPERATOR
+    "backend:type-fix": FIX_MODERN_UNION_OPERATOR,
+    "frontend:write-watches-page-vitest-tests": WRITE_WATCHES_PAGE_VITEST_TESTS,
+    "backend:implement-cors": IMPLEMENT_CORS,
+    "frontend:setup-web-dependencies": SETUP_WEB_DEPENDENCIES,
+    "frontend:setup-react-root": SETUP_REACT_ROOT,
+    "frontend:fix-app-import": FIX_APP_IMPORT,
+    "frontend:refactor-watches-page-to-flights": REFACTOR_WATCHES_PAGE_TO_FLIGHTS,
+
 }
 
 def main():

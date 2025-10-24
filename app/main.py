@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import date, datetime, timezone
 from typing import List, Optional
@@ -12,6 +13,18 @@ from .services.rules import evaluate_rules
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Flight Agent Starter", version="0.1.0")
+
+origins = [
+    "http://localhost:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.post("/watch", response_model=WatchOut)
@@ -63,7 +76,7 @@ def run_tick(db: Session = Depends(get_db)):
             continue
         best = offers[0]
 
-        snap = models.PriceSnapshot(watch_id=w.id, provider="duffel", total=best["total"], currency=best["currency"], raw=best["raw"])  # store minimal
+        snap = models.PriceSnapshot(watch_id=w.id, provider="duffel", total=best["total"], currency=best["currency"], raw=best["raw"])
         db.add(snap)
         db.flush()  # so we get snap.id
 
