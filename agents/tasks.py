@@ -76,3 +76,29 @@ REFACTOR_WATCHES_PAGE_TO_FLIGHTS = Task(
     acceptance="The page now displays flight tracking information, with the ability to add and view flights. All UI elements and data reflect flight details.",
     files_to_touch=["web/src/pages/Watches.tsx", "web/src/pages/Watches.test.tsx"],
 )
+
+ADD_BASIC_CSS_STYLING = Task(
+    role="frontend",
+    title="Add basic CSS styling to the frontend",
+    goal="Improve the visual appearance of the frontend by adding basic CSS styling. Focus on layout, color scheme, and typography to create a more appealing user interface.",
+    acceptance="The frontend has improved visual styling, including better layout, a consistent color scheme, and readable typography. The overall appearance is more polished and user-friendly.",
+    files_to_touch=["web/src/App.css", "web/src/index.css", "web/src/pages/Watches.tsx"],
+)
+
+CONFIGURE_TAILWIND = Task(
+    role="frontend",
+    title="Configure Tailwind CSS",
+    goal="Set up Tailwind CSS with the necessary configuration and ensure it integrates correctly with the build system.",
+    acceptance="Tailwind CSS styles are applied to the frontend, and the build process completes without errors related to Tailwind CSS.",
+    files_to_touch=["web/tailwind.config.js", "web/postcss.config.js", "web/src/index.css"],
+    test_cmd="npm run build",
+)
+
+INSTALL_TAILWIND_POSTCSS = Task(
+    role="frontend",
+    title="Install and configure tailwindcss/postcss",
+    goal="Install @tailwindcss/postcss package and update PostCSS configuration to resolve the error related to using tailwindcss directly as a PostCSS plugin.",
+    acceptance="The error message about using tailwindcss directly as a PostCSS plugin is resolved, and the frontend build process completes successfully.",
+    files_to_touch=["web/postcss.config.js", "web/package.json"],
+    test_cmd="npm run build",
+)

@@ -1,51 +1,56 @@
-/* --- Agent change: Create Flight form & list --- */
 import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
-import { Optional } from '../types';
+import { API_URL } from '../config'; // Import the API URL
 
-interface TypicalPriceDetails {
-  median: number;
-  delta_percent: number;
-}
-
-interface Flight {
+// Interface for what the API will return
+export interface Watch {
   id: number;
   origin: string;
   destination: string;
   departure_date: string;
-  typical_price_details?: TypicalPriceDetails;
+  pax: number;
+  cabin: string;
+  auto_book_price?: number | null;
+  confirm_price?: number | null;
+  currency: string;
 }
 
-const API_URL = 'http://localhost:8000';
+// Interface for the form state
+interface WatchFormState {
+  origin: string;
+  destination: string;
+  departure_date: string;
+  pax: number;
+  cabin: string;
+  confirm_price: string; // Use string for form input
+}
 
-const TypicalBadge: React.FC<{ details: TypicalPriceDetails }> = ({ details }) => {
-  const delta = Math.round(details.delta_percent * 100);
-  const isPositive = delta > 0;
-  const colorClass = isPositive ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800';
-  const sign = isPositive ? '+' : '';
-
-  return (
-    <span className={`text-xs font-medium me-2 px-2.5 py-0.5 rounded ${colorClass}`}>
-      {sign}{delta}% vs typical
-    </span>
-  );
-};
-
-const Flights: React.FC = () => {
-  const [flights, setFlights] = useState<Flight[]>([]);
-  const [newFlight, setNewFlight] = useState({ origin: '', destination: '', departure_date: '' });
+const Watches: React.FC = () => {
+  const [watches, setWatches] = useState<Watch[]>([]);
+  
+  // Set initial state matching the API schema
+  const initialState: WatchFormState = {
+    origin: '',
+    destination: '',
+    departure_date: '',
+    pax: 1,
+    cabin: 'ECONOMY',
+    confirm_price: ''
+  };
+  
+  const [newWatch, setNewWatch] = useState(initialState);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<Optional<string>>(null);
-  const [formError, setFormError] = useState<Optional<string>>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const fetchFlights = async () => {
+  const fetchWatches = async () => {
     try {
       setLoading(true);
       const response = await fetch(`${API_URL}/watch`);
       if (!response.ok) {
-        throw new Error('Failed to fetch flights');
+        throw new Error('Failed to fetch watches');
       }
-      const data: Flight[] = await response.json();
-      setFlights(data);
+      const data: Watch[] = await response.json();
+      setWatches(data);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -55,39 +60,50 @@ const Flights: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchFlights();
+    fetchWatches();
   }, []);
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setNewFlight(prevState => ({ ...prevState, [name]: value }));
+    setNewWatch(prevState => ({ 
+      ...prevState, 
+      [name]: name === 'pax' ? parseInt(value, 10) : value 
+    }));
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setFormError(null);
 
-    if (!newFlight.origin || !newFlight.destination || !newFlight.departure_date) {
-      setFormError('All fields are required.');
+    // This check now matches the test's expectation
+    if (!newWatch.origin || !newWatch.destination || !newWatch.departure_date) {
+      setFormError('Origin, Destination, and Date are required.');
       return;
     }
 
     try {
+      // Prepare payload for the API
+      const payload = {
+        ...newWatch,
+        confirm_price: newWatch.confirm_price ? parseFloat(newWatch.confirm_price) : null,
+        auto_book_price: null 
+      };
+
       const response = await fetch(`${API_URL}/watch`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(newFlight),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Failed to create flight');
+        throw new Error(errorData.detail || 'Failed to create watch');
       }
 
-      setNewFlight({ origin: '', destination: '', departure_date: '' });
-      await fetchFlights();
+      setNewWatch(initialState); // Reset form
+      await fetchWatches();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'An unknown error occurred');
     }
@@ -95,82 +111,84 @@ const Flights: React.FC = () => {
 
   return (
     <div className="container mx-auto p-4 max-w-3xl">
-      <h1 className="text-2xl font-bold mb-4">My Watched Flights</h1>
+      <h1 className="text-2xl font-bold mb-4">My Flight Watches</h1>
 
       <div className="mb-8 p-4 border rounded-lg shadow-sm bg-white">
-        <h2 className="text-xl font-semibold mb-2">Add New Flight</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="origin" className="block text-sm font-medium text-gray-700">Origin</label>
-            <input
-              type="text"
-              id="origin"
-              name="origin"
-              value={newFlight.origin}
-              onChange={handleInputChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="e.g., JFK"
-              required
-              aria-label="Origin"
-            />
+        <h2 className="text-xl font-semibold mb-2">Add New Flight Watch</h2>
+<form onSubmit={handleSubmit} className="space-y-4" data-testid="add-watch-form">          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="origin" className="block text-sm font-medium text-gray-700">Origin (IATA)</label>
+              <input
+                type="text" id="origin" name="origin"
+                value={newWatch.origin} onChange={handleInputChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                placeholder="e.g., JFK" required maxLength={3}
+                aria-label="Origin (IATA)"
+              />
+            </div>
+            <div>
+              <label htmlFor="destination" className="block text-sm font-medium text-gray-700">Destination (IATA)</label>
+              <input
+                type="text" id="destination" name="destination"
+                value={newWatch.destination} onChange={handleInputChange}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                placeholder="e.g., LAX" required maxLength={3}
+                aria-label="Destination (IATA)"
+              />
+            </div>
           </div>
-          <div>
-            <label htmlFor="destination" className="block text-sm font-medium text-gray-700">Destination</label>
-            <input
-              type="text"
-              id="destination"
-              name="destination"
-              value={newFlight.destination}
-              onChange={handleInputChange}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              placeholder="e.g., LAX"
-              required
-              aria-label="Destination"
-            />
-          </div>
+
           <div>
             <label htmlFor="departure_date" className="block text-sm font-medium text-gray-700">Departure Date</label>
             <input
-              type="date"
-              id="departure_date"
-              name="departure_date"
-              value={newFlight.departure_date}
-              onChange={handleInputChange}
+              type="date" id="departure_date" name="departure_date"
+              value={newWatch.departure_date} onChange={handleInputChange}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              required
-              aria-label="Departure Date"
+              required aria-label="Departure Date"
             />
           </div>
+
+          <div>
+            <label htmlFor="confirm_price" className="block text-sm font-medium text-gray-700">Confirm Price (USD)</label>
+            <input
+              type="number" id="confirm_price" name="confirm_price"
+              value={newWatch.confirm_price} onChange={handleInputChange}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="e.g., 250" aria-label="Confirm Price"
+            />
+          </div>
+
           {formError && <p className="text-sm text-red-600">{formError}</p>}
           <button
             type="submit"
             className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
-            Add Flight
+            Add Watch
           </button>
         </form>
       </div>
 
       <div>
-        <h2 className="text-xl font-semibold mb-2">Flight List</h2>
-        {loading && <p>Loading flights...</p>}
+        <h2 className="text-xl font-semibold mb-2">Watch List</h2>
+        {loading && <p>Loading watches...</p>}
         {error && <p className="text-red-600">Error: {error}</p>}
-        {!loading && !error && flights.length === 0 && (
+        {!loading && !error && watches.length === 0 && (
           <div className="text-center py-10 px-4 border-2 border-dashed rounded-lg">
-            <h3 className="text-sm font-medium text-gray-900">No flights added yet</h3>
-            <p className="mt-1 text-sm text-gray-500">Add a flight using the form above to start tracking.</p>
+            <h3 className="text-sm font-medium text-gray-900">No watches added yet</h3>
+            <p className="mt-1 text-sm text-gray-500">Add a watch using the form above to start tracking.</p>
           </div>
         )}
-        {!loading && !error && flights.length > 0 && (
+        {!loading && !error && watches.length > 0 && (
           <ul className="space-y-3">
-            {flights.map((flight) => (
-              <li key={flight.id} className="bg-white shadow overflow-hidden rounded-md px-6 py-4 flex justify-between items-center">
+            {watches.map((watch) => (
+              <li key={watch.id} className="bg-white shadow overflow-hidden rounded-md px-6 py-4">
                 <div>
-                  <p className="text-sm font-medium text-indigo-600 truncate">{flight.origin} to {flight.destination}</p>
-                  <p className="mt-1 text-sm text-gray-500">{flight.departure_date}</p>
-                </div>
-                <div>
-                  {flight.typical_price_details && <TypicalBadge details={flight.typical_price_details} />}
+                  <p className="text-sm font-medium text-indigo-600 truncate">{watch.origin} to {watch.destination}</p>
+                  <p className="mt-1 text-sm text-gray-500">Date: {watch.departure_date}</p>
+                  {watch.confirm_price && (
+                     <p className="mt-1 text-sm text-gray-500">Alert if under ${watch.confirm_price}</p>
+                  )}
                 </div>
               </li>
             ))}
@@ -181,4 +199,4 @@ const Flights: React.FC = () => {
   );
 };
 
-export default Flights;
+export default Watches;

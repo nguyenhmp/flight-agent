@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 // 1. Import your Watches page
 import Watches from './pages/Watches' 
+import './index.css' // <-- ADD THIS LINE
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

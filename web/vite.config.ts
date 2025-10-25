@@ -1,21 +1,19 @@
-/// <reference types="vitest" /> // Keep this line
-import { defineConfig, UserConfig } from 'vite'; // Import UserConfig
+/// <reference types="vitest" />
+import { defineConfig, UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import type { InlineConfig } from 'vitest'; // Import Vitest's config type
+import type { InlineConfig } from 'vitest';
+import type { UserConfig as VitestUserConfigInterface } from 'vitest/config';
 
-// Combine the types
+// Combine the types to satisfy TypeScript
 interface VitestConfigExport extends UserConfig {
   test: InlineConfig;
 }
 
 export default defineConfig({
   plugins: [react()],
-  test: { // Vitest configuration options
+  test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './vitest.setup.ts', 
-    deps: {
-      inline: ['msw'], 
-    },
+    setupFiles: './vitest.setup.ts', // We will create this next
   },
-} as VitestConfigExport ); // Cast the config object to the combined type
+} as VitestConfigExport );

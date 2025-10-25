@@ -14,7 +14,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
-from agents.tasks import IMPLEMENT_CORS, CREATE_WATCHES_UI, FIX_MODERN_UNION_OPERATOR, WRITE_WATCHES_PAGE_VITEST_TESTS, SETUP_WEB_DEPENDENCIES, SETUP_REACT_ROOT, FIX_APP_IMPORT, REFACTOR_WATCHES_PAGE_TO_FLIGHTS
+from agents.tasks import IMPLEMENT_CORS, CREATE_WATCHES_UI, FIX_MODERN_UNION_OPERATOR, WRITE_WATCHES_PAGE_VITEST_TESTS, SETUP_WEB_DEPENDENCIES, SETUP_REACT_ROOT, FIX_APP_IMPORT, REFACTOR_WATCHES_PAGE_TO_FLIGHTS, ADD_BASIC_CSS_STYLING, CONFIGURE_TAILWIND, INSTALL_TAILWIND_POSTCSS
 from orchestrator.graph import run_task
 
 TASKS = {
@@ -27,6 +27,9 @@ TASKS = {
     "frontend:setup-react-root": SETUP_REACT_ROOT,
     "frontend:fix-app-import": FIX_APP_IMPORT,
     "frontend:refactor-watches-page-to-flights": REFACTOR_WATCHES_PAGE_TO_FLIGHTS,
+    "frontend:add-basic-css-styling": ADD_BASIC_CSS_STYLING,
+    "frontend:configure-tailwind": CONFIGURE_TAILWIND,
+    "frontend:install-tailwind-postcss": INSTALL_TAILWIND_POSTCSS,
 
 }
 
